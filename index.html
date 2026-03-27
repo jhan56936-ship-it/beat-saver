@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beat Saber 3D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;0,900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            overflow: hidden;
+            background: #050010;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+            user-select: none;
+        }
+
+        #threeCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1
+        }
+
+        #webcamVideo {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 220px;
+            height: 165px;
+            border: 2px solid rgba(255, 255, 255, .3);
+            border-radius: 12px;
+            z-index: 10;
+            transform: scaleX(-1);
+            object-fit: cover
+        }
+
+        #webcamVideo.hidden {
+            display: none
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(5, 0, 16, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #fff;
+            text-align: center;
+        }
+
+        #overlay.hidden {
+            display: none
+        }
+
+        #overlay h1 {
+            font-size: 80px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #ff0844, #00d2ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 40px rgba(255, 8, 68, 0.4);
+        }
+
+        #overlay p {
+            font-size: 16px;
+            color: #aaa;
+            margin-bottom: 10px;
+            max-width: 520px;
+            line-height: 1.6
+        }
+
+        .btn {
+            padding: 14px 44px;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #ff0844, #4834d4);
+            color: #fff;
+            transition: transform .2s, box-shadow .2s;
+            margin: 6px
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 8, 68, .5)
+        }
+
+        .btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+            transform: none
+        }
+
+        .input-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 300px;
+            margin: 5px 0;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-box:focus {
+            border-color: #00d2ff;
+        }
+
+        #setupPanel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: 20px;
+            margin-top: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.05);
+            max-width: 600px;
+            width: 90%;
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        #setupPanel.ready {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .file-upload-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 400px;
+            gap: 10px;
+            margin: 5px 0;
+        }
+
+        .file-label {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .file-label:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .file-name {
+            font-size: 12px;
+            color: #aaa;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 10;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none
+        }
+
+        #hud.hidden {
+            display: none
+        }
+
+        .hud-item {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(0, 0, 0, .8)
+        }
+
+        #score {
+            font-size: 40px
+        }
+
+        #combo {
+            font-size: 22px;
+            color: #ffd700;
+            opacity: 0;
+            transition: opacity .3s
+        }
+
+        #combo.show {
+            opacity: 1
+        }
+
+        #multiplier {
+            font-size: 16px;
+            color: #00d2ff
+        }
+
+        #hitFeedback {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            font-weight: 900;
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            font-style: italic;
+        }
+
+        #hitFeedback.show {
+            opacity: 1;
+            animation: fb .4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes fb {
+            0% {
+                transform: translate(-50%, -50%) scale(.5);
+                opacity: 0;
+            }
+
+            20% {
+                transform: translate(-50%, -60%) scale(1.4);
+                opacity: 1;
+                text-shadow: 0 0 50px rgba(255, 215, 0, 1);
+            }
+
+            100% {
+                transform: translate(-50%, -100%) scale(1);
+                opacity: 0
+            }
+        }
+
+        #judgement {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: 900;
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0;
+            letter-spacing: 12px;
+            font-style: italic;
+            text-transform: uppercase;
+        }
+
+        #judgement.show {
+            opacity: 1;
+            animation: jdg .5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes jdg {
+            0% {
+                transform: translate(-50%, -50%) scale(.5);
+                opacity: 0;
+                letter-spacing: 0px;
+            }
+
+            30% {
+                transform: translate(-50%, -60%) scale(1.2);
+                opacity: 1;
+                letter-spacing: 18px;
+            }
+
+            100% {
+                transform: translate(-50%, -80%) scale(1);
+                opacity: 0;
+                letter-spacing: 24px;
+            }
+        }
+
+        #difficultySelect {
+            display: flex;
+            gap: 10px;
+            margin: 12px 0
+        }
+
+        .diff-btn {
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, .1);
+            border: 1px solid rgba(255, 255, 255, .2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all .2s
+        }
+
+        .diff-btn:hover,
+        .diff-btn.active {
+            border-color: #4834d4;
+            background: rgba(72, 52, 212, .3)
+        }
+
+        #loadingText {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 8px;
+            min-height: 20px;
+            max-width: 500px;
+            line-height: 1.5
+        }
+
+        #healthBar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 8px;
+            background: rgba(255, 255, 255, .15);
+            border-radius: 4px;
+            z-index: 10;
+            overflow: hidden
+        }
+
+        #healthBar.hidden {
+            display: none
+        }
+
+        #healthFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ff0844, #00d2ff);
+            border-radius: 4px;
+            transition: width .3s
+        }
+
+        #missIndicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            pointer-events: none;
+            border: 4px solid transparent;
+            transition: border-color .15s
+        }
+
+        #missIndicator.miss {
+            border-color: rgba(255, 0, 0, .6)
+        }
+
+        .hand-indicator {
+            position: fixed;
+            bottom: 10px;
+            z-index: 15;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            pointer-events: none
+        }
+
+        #leftHandStatus {
+            left: 20px;
+            background: rgba(255, 8, 68, .6)
+        }
+
+        #rightHandStatus {
+            left: 130px;
+            background: rgba(0, 120, 255, .6)
+        }
+
+        .warn-box {
+            background: rgba(255, 150, 0, .15);
+            border: 1px solid rgba(255, 150, 0, .4);
+            border-radius: 10px;
+            padding: 14px 20px;
+            margin: 10px 0;
+            max-width: 480px;
+            font-size: 13px;
+            color: #fa4;
+            line-height: 1.6
+        }
+
+        #debugInfo {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            color: lime;
+            font-size: 11px;
+            z-index: 30;
+            font-family: monospace;
+            pointer-events: none;
+            background: rgba(0, 0, 0, .5);
+            padding: 5px 8px;
+            border-radius: 4px;
+            display: none
+        }
+    </style>
+</head>
+
+<body>
+    <div id="threeCanvas"></div>
+    <video id="webcamVideo" class="hidden" autoplay playsinline></video>
+    <div id="overlay">
+        <h1 id="title">BEAT SABER</h1>
+        <p>3D Hand Tracking<br><small style="color:#666">Google MediaPipe + Three.js</small></p>
+        <div id="loadingText"></div>
+        <div id="webglStatus"></div>
+
+        <div id="setupPanel">
+            <h3 style="font-size: 16px; margin-bottom: 5px; color:#00d2ff;">Map Setup</h3>
+
+            <div class="file-upload-row">
+                <label class="file-label">
+                    <input type="file" id="audioInput" accept="audio/*" style="display:none">
+                    🎵 Select Audio (MP3/WAV)
+                </label>
+                <div class="file-name" id="audioFileName">No file selected</div>
+            </div>
+
+            <div class="file-upload-row">
+                <label class="file-label">
+                    <input type="file" id="mapInput" accept=".json" style="display:none">
+                    📂 Load Map JSON (Optional)
+                </label>
+                <div class="file-name" id="mapFileName">No map loaded</div>
+            </div>
+
+            <div class="file-upload-row">
+                <label class="file-label">
+                    <input type="file" id="blockImageInput" accept="image/*" style="display:none">
+                    🖼️ Custom Block Image
+                </label>
+                <div class="file-name" id="blockImageName">Default pattern</div>
+            </div>
+
+            <div style="margin-top: 15px; margin-bottom: 15px;">
+                <h4 style="font-size: 13px; color:#aaa; margin-bottom: 5px;">Play Style</h4>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn style-btn active" data-style="saber"
+                        style="padding: 6px 12px; font-size: 13px; margin:0; flex: 1;">⚔️ SABER</button>
+                    <button class="btn style-btn" data-style="gun"
+                        style="padding: 6px 12px; font-size: 13px; margin:0; flex: 1;">🔫 GUN</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; margin-bottom: 15px;">
+                <h4 style="font-size: 13px; color:#aaa; margin-bottom: 5px;">Difficulty (Density & Speed)</h4>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn diff-btn active" data-diff="easy"
+                        style="padding: 6px 12px; font-size: 13px; margin:0; flex: 1;">EASY</button>
+                    <button class="btn diff-btn" data-diff="normal"
+                        style="padding: 6px 12px; font-size: 13px; margin:0; flex: 1;">NORMAL</button>
+                    <button class="btn diff-btn" data-diff="hard"
+                        style="padding: 6px 12px; font-size: 13px; margin:0; flex: 1;">HARD</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4
+                    style="font-size: 13px; color:#aaa; margin-bottom: 5px; display:flex; justify-content:space-between;">
+                    <span>Block Density Multiplier</span>
+                    <span id="densityVal" style="color:#00d2ff; font-weight:bold;">1.0x</span>
+                </h4>
+                <input type="range" id="densitySlider" min="0.2" max="3.0" step="0.1" value="1.0"
+                    style="width: 100%; cursor: pointer;">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <button class="btn" id="generateBtn" style="padding: 10px 20px; font-size: 15px; margin:0;"
+                    disabled>Generate Map</button>
+                <button class="btn" id="startBtn" style="padding: 10px 20px; font-size: 15px; margin:0;"
+                    disabled>PLAY</button>
+            </div>
+        </div>
+
+        <div id="finalScore" style="display:none;margin-top:20px">
+            <div style="font-size:20px;color:#aaa">Final Score</div>
+            <div style="font-size:56px;font-weight:900;color:#ffd700" id="finalScoreVal">0</div>
+            <div style="font-size:16px;color:#aaa" id="finalStats"></div>
+            <button class="btn" id="downloadMapBtn"
+                style="margin-top:15px; display:none; font-size: 14px; padding: 10px 20px;">💾 Download Beatmap
+                JSON</button>
+            <br>
+            <button class="btn" id="retryBtn" style="margin-top:10px;">RETRY STAGE</button>
+        </div>
+    </div>
+    <div id="hud" class="hidden">
+        <div>
+            <div class="hud-item" id="score">0</div>
+            <div id="combo">Combo x0</div>
+            <div id="multiplier">x1</div>
+        </div>
+        <div style="text-align:right">
+            <div class="hud-item" id="accuracy">100%</div>
+        </div>
+    </div>
+    <div id="hitFeedback"></div>
+    <div id="judgement"></div>
+    <div id="healthBar" class="hidden">
+        <div id="healthFill"></div>
+    </div>
+    <div id="missIndicator"></div>
+    <div class="hand-indicator" id="leftHandStatus" style="opacity:.3">LEFT</div>
+    <div class="hand-indicator" id="rightHandStatus" style="opacity:.3">RIGHT</div>
+    <div id="debugInfo"></div>
+
+    <script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { FilesetResolver, HandLandmarker, FaceLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs';
+        window.THREE = THREE; // for global access
+
+        // ==================== CONFIG ====================
+        const LANE_COUNT = 4, ROW_COUNT = 3;
+        const LANE_W = 1.3, ROW_H = 1.1; // Slightly wider lanes
+        const TRACK_LEN = 60;
+        const DIFFICULTIES = {
+            easy: { speed: 15, spawnRate: 2000, maxBlocks: 1, skipChance: 0.65 },
+            normal: { speed: 22, spawnRate: 1200, maxBlocks: 2, skipChance: 0.35 },
+            hard: { speed: 30, spawnRate: 700, maxBlocks: 3, skipChance: 0.05 },
+        };
+
+        // ==================== STATE ====================
+        let gameRunning = false, paused = false;
+        let score = 0, combo = 0, maxCombo = 0;
+        let totalNotes = 0, hitNotes = 0, health = 100;
+        let difficulty = 'easy';
+        let playStyle = 'saber'; // 'saber' or 'gun'
+        let blocks = [];
+        let bullets = [];
+        let lastFireTimeL = 0, lastFireTimeR = 0;
+        let audioCtx = null, beatInterval = null, hitFeedbackTimer = null;
+        let handLandmarker = null, faceLandmarker = null, lastVideoTime = -1;
+        let lastTime = 0;
+        let headPos = { x: 0, y: 0 }; // Normalized head pos relative to center
+
+        let blockTexture = null; // Custom texture for blocks
+
+        let gameMode = 'random'; // 'random' or 'custom'
+        let customBeatmap = null;
+        let customAudioBuffer = null;
+        let audioSourceNode = null;
+        let gameStartTime = 0;
+
+        // pos: normalized 0~1 coords (mirrored)
+        // angle: saber angle in radians (wrist→fingertip direction)
+        // dir: 3D vector extending outward from wrist
+        // angVel: angular velocity
+        let hands = {
+            left: { pos: null, prev: null, vel: { x: 0, y: 0 }, angle: 0, prevAngle: 0, angVel: 0, dir: new THREE.Vector3(0, 1, 0), prevDir: null, gunPose: false, recoilState: 0 },
+            right: { pos: null, prev: null, vel: { x: 0, y: 0 }, angle: 0, prevAngle: 0, angVel: 0, dir: new THREE.Vector3(0, 1, 0), prevDir: null, gunPose: false, recoilState: 0 },
+        };
+
+        // ==================== THREE.JS ====================
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050010, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 200);
+        camera.position.set(0, 3.5, 3);
+        camera.lookAt(0, 1.5, -15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.setClearColor(0x050010);
+        document.getElementById('threeCanvas').appendChild(renderer.domElement);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0x222244, 0.6));
+        const dirL = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirL.position.set(0, 10, 5);
+        scene.add(dirL);
+
+        const leftLight = new THREE.PointLight(0xff0844, 4, 10);
+        const rightLight = new THREE.PointLight(0x0088ff, 4, 10);
+        scene.add(leftLight); scene.add(rightLight);
+
+        // ==================== ENVIRONMENT ====================
+        // Floor
+        const floorGeo = new THREE.PlaneGeometry(20, TRACK_LEN * 2);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0a0a1a, roughness: 0.9 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2; floor.position.set(0, -0.5, -TRACK_LEN);
+        scene.add(floor);
+
+        // Grid
+        const gridMat = new THREE.LineBasicMaterial({ color: 0x2211aa, transparent: true, opacity: 0.25 });
+        for (let i = -10; i <= 10; i++) {
+            const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i, -0.49, 5), new THREE.Vector3(i, -0.49, -TRACK_LEN * 2)]);
+            scene.add(new THREE.Line(g, gridMat));
+        }
+        for (let i = 0; i < TRACK_LEN * 2; i += 2) {
+            const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-10, -0.49, 5 - i), new THREE.Vector3(10, -0.49, 5 - i)]);
+            scene.add(new THREE.Line(g, gridMat));
+        }
+
+        // Side neon rails
+        const totalW = LANE_COUNT * LANE_W;
+        const wallX = totalW / 2 + 0.5;
+        const neonL = new THREE.LineBasicMaterial({ color: 0xff0844, transparent: true, opacity: 0.5 });
+        const neonR = new THREE.LineBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.5 });
+        for (let h = 0; h < 4; h++) {
+            const y = h * 1.0;
+            scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-wallX, y, 5), new THREE.Vector3(-wallX, y, -TRACK_LEN * 2)]), neonL));
+            scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(wallX, y, 5), new THREE.Vector3(wallX, y, -TRACK_LEN * 2)]), neonR));
+        }
+
+        // ==================== SABERS (FBX Models) ====================
+        // Fallback saber in case FBX fails to load
+        function makeFallbackSaber(color) {
+            const g = new THREE.Group();
+            const blade = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.035, 0.035, 1.6, 8),
+                new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2, roughness: 0.1, metalness: 0.9 })
+            );
+            blade.position.y = 0.8; g.add(blade);
+            const glow = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.1, 1.6, 8),
+                new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.15 })
+            );
+            glow.position.y = 0.8; g.add(glow);
+            g.visible = false;
+            scene.add(g);
+            return g;
+        }
+
+        const saberL = makeFallbackSaber(0xff0844);
+        const saberR = makeFallbackSaber(0x0088ff);
+
+        // Load FBX/OBJ sword models
+        const fbxLoader = new FBXLoader();
+        const objLoader = new OBJLoader();
+        const textureLoader = new THREE.TextureLoader();
+
+        function loadSwordModelFBX(fbxPath, targetGroup, tintColor, glowColor) {
+            console.log('Loading FBX sword:', fbxPath);
+            fbxLoader.load(fbxPath, (fbx) => {
+                console.log('FBX loaded:', fbxPath, fbx);
+
+                fbx.animations = [];
+
+                const box = new THREE.Box3().setFromObject(fbx);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+
+                const s = 2.0 / maxDim;
+                fbx.scale.setScalar(s);
+                fbx.position.set(-center.x * s, -center.y * s, -center.z * s);
+
+                fbx.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: tintColor,
+                            emissive: new THREE.Color(glowColor), emissiveIntensity: 1.0,
+                            roughness: 0.3, metalness: 0.8,
+                        });
+                    }
+                });
+
+                const pivot = new THREE.Group();
+                pivot.add(fbx);
+
+                while (targetGroup.children.length > 0) {
+                    targetGroup.children[0].geometry?.dispose();
+                    targetGroup.children[0].material?.dispose();
+                    targetGroup.remove(targetGroup.children[0]);
+                }
+                targetGroup.add(pivot);
+                targetGroup._loaded = true;
+                console.log('FBX Sword ready:', fbxPath);
+            }, undefined, (err) => console.error('FBX load FAILED:', fbxPath, err));
+        }
+
+        function loadRedSwordOBJ(objPath, texturePath, targetGroup) {
+            console.log('Loading OBJ sword:', objPath);
+            objLoader.load(objPath, (obj) => {
+                console.log('OBJ loaded:', objPath);
+
+                const box = new THREE.Box3().setFromObject(obj);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+
+                const s = 2.0 / maxDim;
+                obj.scale.setScalar(s);
+                obj.position.set(-center.x * s, -center.y * s, -center.z * s);
+
+                const bladeMat = new THREE.MeshStandardMaterial({
+                    map: textureLoader.load(texturePath + 'RedSwordBlade_Base_Color.png'),
+                    emissiveMap: textureLoader.load(texturePath + 'RedSwordBlade_Emissive.png'),
+                    emissive: new THREE.Color(0xff0844),
+                    emissiveIntensity: 3.0,
+                    normalMap: textureLoader.load(texturePath + 'RedSwordBlade_Normal_OpenGL.png'),
+                    roughnessMap: textureLoader.load(texturePath + 'RedSwordBlade_Roughness.png'),
+                    metalnessMap: textureLoader.load(texturePath + 'RedSwordBlade_Metallic.png'),
+                    roughness: 0.4, metalness: 0.8
+                });
+
+                const handleMat = new THREE.MeshStandardMaterial({
+                    map: textureLoader.load(texturePath + 'RedSwordHandle_Base_Color.png'),
+                    normalMap: textureLoader.load(texturePath + 'RedSwordHandle_Normal_OpenGL.png'),
+                    roughnessMap: textureLoader.load(texturePath + 'RedSwordHandle_Roughness.png'),
+                    metalnessMap: textureLoader.load(texturePath + 'RedSwordHandle_Metallic.png'),
+                    roughness: 0.5, metalness: 0.5
+                });
+
+                obj.traverse((child) => {
+                    if (child.isMesh) {
+                        const name = child.name || '';
+                        const mName = (child.material && child.material.name) || '';
+                        if (name.includes('Blade') || mName.includes('Blade')) {
+                            child.material = bladeMat;
+                        } else {
+                            child.material = handleMat;
+                        }
+                    }
+                });
+
+                const pivot = new THREE.Group();
+                pivot.add(obj);
+
+                while (targetGroup.children.length > 0) {
+                    targetGroup.children[0].geometry?.dispose();
+                    targetGroup.children[0].material?.dispose();
+                    targetGroup.remove(targetGroup.children[0]);
+                }
+                targetGroup.add(pivot);
+                targetGroup._loaded = true;
+                console.log('OBJ Sword ready:', objPath);
+            }, undefined, (err) => console.error('OBJ load FAILED:', objPath, err));
+        }
+
+        // Load red sword (.obj format)
+        loadRedSwordOBJ('models/red-sword/Red_Sword.obj', 'models/red-sword/', saberL);
+        // Load blue sword (.fbx format)
+        loadSwordModelFBX('models/blue-sword/sword.fbx', saberR, 0x2244ff, 0x0088ff);
+
+        // Trails
+        function makeTrail(color) {
+            const MAX = 20;
+            const pos = new Float32Array(MAX * 3);
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
+            const line = new THREE.Line(geo, mat);
+            scene.add(line);
+            return { line, history: [] };
+        }
+        const trailL = makeTrail(0xff0844);
+        const trailR = makeTrail(0x0088ff);
+
+        function updateTrail(trail, p) {
+            if (!p) return;
+            trail.history.push(p.clone());
+            if (trail.history.length > 20) trail.history.shift();
+            const arr = trail.line.geometry.attributes.position.array;
+            for (let i = 0; i < 20; i++) {
+                const src = i < trail.history.length ? trail.history[i] : trail.history[trail.history.length - 1];
+                arr[i * 3] = src.x; arr[i * 3 + 1] = src.y; arr[i * 3 + 2] = src.z;
+            }
+            trail.line.geometry.attributes.position.needsUpdate = true;
+            trail.line.geometry.setDrawRange(0, trail.history.length);
+        }
+
+        // Particles
+        let particleSystems = [];
+        function boom(pos, color) {
+            const N = 25;
+            const geo = new THREE.BufferGeometry();
+            const p = new Float32Array(N * 3);
+            const v = [];
+            for (let i = 0; i < N; i++) {
+                p[i * 3] = pos.x; p[i * 3 + 1] = pos.y; p[i * 3 + 2] = pos.z;
+                v.push(new THREE.Vector3((Math.random() - .5) * .4, (Math.random() - .5) * .4, (Math.random() - .5) * .4));
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+            const mat = new THREE.PointsMaterial({ color, size: 0.12, transparent: true });
+            const pts = new THREE.Points(geo, mat);
+            scene.add(pts);
+            particleSystems.push({ pts, v, life: 1 });
+        }
+        function tickParticles(dt) {
+            particleSystems = particleSystems.filter(ps => {
+                ps.life -= dt * 2;
+                ps.pts.material.opacity = Math.max(0, ps.life);
+                const a = ps.pts.geometry.attributes.position.array;
+                for (let i = 0; i < ps.v.length; i++) {
+                    a[i * 3] += ps.v[i].x; a[i * 3 + 1] += ps.v[i].y; a[i * 3 + 2] += ps.v[i].z;
+                    ps.v[i].y -= 0.008;
+                }
+                ps.pts.geometry.attributes.position.needsUpdate = true;
+                if (ps.life <= 0) { scene.remove(ps.pts); ps.pts.geometry.dispose(); ps.pts.material.dispose(); return false; }
+                return true;
+            });
+        }
+
+        // ==================== COORDINATE MAPPING ====================
+        // Hand normalized (0~1) -> 3D world position at z=0 (hit zone)
+        function handToWorld(h) {
+            if (!h) return null;
+            // INCREASED MULTIPLIER: 2.8 instead of 1.8 so small hand movements far from camera reach the edges
+            const x = (h.x - 0.5) * totalW * 2.8;
+            const y = (1 - h.y) * ROW_COUNT * ROW_H * 2.0 - 0.5;
+            return new THREE.Vector3(x, Math.max(-0.5, y), 0);
+        }
+
+        // Block grid -> 3D world position
+        function blockWorldXY(lane, row) {
+            const x = -totalW / 2 + (lane + 0.5) * LANE_W;
+            const y = 0.3 + row * ROW_H;
+            return { x, y };
+        }
+
+        // ==================== BLOCK CREATION ====================
+        const arrows = { up: '\u2191', down: '\u2193', left: '\u2190', right: '\u2192', any: '\u2022' };
+        const DIRS = ['up', 'down', 'left', 'right', 'any'];
+
+        function makeBlock(block) {
+            const g = new THREE.Group();
+
+            if (block.type === 'bomb') {
+                const mat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xff4400, emissiveIntensity: 0.8, roughness: 0.9, metalness: 0.1 });
+                g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), mat));
+
+                // Add spikes
+                const spikeGeo = new THREE.ConeGeometry(0.1, 0.4, 4);
+                const spikeMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 });
+                for (let i = 0; i < 6; i++) {
+                    const spike = new THREE.Mesh(spikeGeo, spikeMat);
+                    spike.position.set(
+                        (i === 0 ? 0.5 : i === 1 ? -0.5 : 0),
+                        (i === 2 ? 0.5 : i === 3 ? -0.5 : 0),
+                        (i === 4 ? 0.5 : i === 5 ? -0.5 : 0)
+                    );
+                    spike.lookAt(0, 0, 0);
+                    g.add(spike);
+                }
+                scene.add(g);
+                return { group: g, mat };
+            } else if (block.type === 'wall') {
+                const w = (block.width || 2) * LANE_W;
+                const h = 4.0;
+                const mat = new THREE.MeshBasicMaterial({ color: 0xff0044, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 2.0), mat);
+                mesh.position.x = (w / 2) - (LANE_W / 2);
+                mesh.position.y = 1.0;
+                g.add(mesh);
+
+                const edges = new THREE.EdgesGeometry(mesh.geometry);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xff0044, transparent: true, opacity: 0.8 }));
+                line.position.copy(mesh.position);
+                g.add(line);
+
+                scene.add(g);
+                return { group: g, mat };
+            }
+
+            const color = block.type === 'left' ? 0xff0844 : 0x0088ff;
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: blockTexture ? 0xffffff : color, 
+                map: blockTexture, 
+                emissive: color, 
+                emissiveIntensity: blockTexture ? 0.15 : 0.4, 
+                roughness: 0.2, 
+                metalness: 0.8 
+            });
+            g.add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.85), mat));
+            
+            // Outer shell - also applying texture with color tint
+            const shellMat = new THREE.MeshStandardMaterial({ 
+                color, 
+                map: blockTexture, 
+                transparent: true, 
+                opacity: blockTexture ? 0.45 : 0.15,
+                side: THREE.DoubleSide
+            });
+            g.add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 1.0), shellMat));
+            // Arrow or Any-Dot
+            if (block.direction) {
+                const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+                const cx = c.getContext('2d');
+                cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+                if (block.direction === 'any') {
+                    cx.beginPath(); cx.arc(32, 32, 12, 0, Math.PI * 2); cx.fill();
+                } else {
+                    cx.font = 'bold 48px sans-serif';
+                    cx.fillText(arrows[block.direction], 32, 32);
+                }
+                const tex = new THREE.CanvasTexture(c);
+                const arrowM = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.45), new THREE.MeshBasicMaterial({ 
+                    map: tex, 
+                    transparent: true,
+                    depthTest: false // Ensure arrow is ALWAYS on top
+                }));
+                arrowM.position.z = 0.45; // Move slightly further forward
+                g.add(arrowM);
+            }
+            scene.add(g);
+            return { group: g, mat };
+        }
+
+        // ==================== MEDIAPIPE ====================
+        const loadingText = document.getElementById('loadingText');
+
+        async function initMediaPipe() {
+            try {
+                loadingText.textContent = 'Loading MediaPipe Vision...';
+                const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm');
+                
+                let delegate = 'GPU';
+                const handOpts = {
+                    baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate },
+                    runningMode: 'VIDEO', numHands: 2,
+                    minHandDetectionConfidence: 0.15, minHandPresenceConfidence: 0.15, minTrackingConfidence: 0.15,
+                };
+                const faceOpts = {
+                    baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate },
+                    runningMode: 'VIDEO', numFaces: 1
+                };
+
+                loadingText.textContent = 'Loading AI Models (Hand/Face)...';
+                try {
+                    handLandmarker = await HandLandmarker.createFromOptions(vision, handOpts);
+                    faceLandmarker = await FaceLandmarker.createFromOptions(vision, faceOpts);
+                } catch (e) {
+                    console.warn('GPU failed, trying CPU', e);
+                    delegate = 'CPU';
+                    handOpts.baseOptions.delegate = 'CPU';
+                    faceOpts.baseOptions.delegate = 'CPU';
+                    handLandmarker = await HandLandmarker.createFromOptions(vision, handOpts);
+                    faceLandmarker = await FaceLandmarker.createFromOptions(vision, faceOpts);
+                }
+
+                loadingText.textContent = 'Starting camera...';
+                const video = document.getElementById('webcamVideo');
+                video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+                video.classList.remove('hidden');
+                await new Promise(r => { video.onloadeddata = r; });
+                
+                loadingText.textContent = `Ready! (${delegate}) Show your hands.`;
+                console.log("MediaPipe Initialized Successfully! Delegate:", delegate);
+                document.getElementById('setupPanel').classList.add('ready');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').textContent = 'PLAY RANDOM';
+                detectLoop();
+            } catch (err) {
+                console.error("MediaPipe Initialization ERROR:", err);
+                loadingText.innerHTML = '<span style="color:#ff0844">Loading Error! Check Console.</span>';
+                document.getElementById('webglStatus').innerHTML = '<div class="warn-box"><b>MediaPipe failed</b><br>' + err.message.substring(0, 150) + '<br><br>Use Chrome with Hardware Acceleration.</div>';
+            }
+        }
+
+        function detectLoop() {
+            const video = document.getElementById('webcamVideo');
+            (function tick() {
+                requestAnimationFrame(tick);
+                if (!handLandmarker || !faceLandmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
+                lastVideoTime = video.currentTime;
+                let r, f;
+                try {
+                    const nowTS = performance.now();
+                    r = handLandmarker.detectForVideo(video, nowTS);
+                    f = faceLandmarker.detectForVideo(video, nowTS);
+                    
+                    // [디버깅 로그] 손이 인식될 때 100번에 한 번씩 데이터를 찍어줍니다.
+                    if (r && r.landmarks && r.landmarks.length > 0) {
+                        if (!window._logCounter) window._logCounter = 0;
+                        window._logCounter++;
+                        if (window._logCounter % 100 === 1) {
+                            console.log("--- [성공] 손 데이터 수신 중 ---");
+                            console.log("인식된 손 개수:", r.landmarks.length);
+                            console.log("0번(손목) 점 좌표:", r.landmarks[0][0]);
+                            console.log("전체 21개 점 데이터 보려면 클릭:", r.landmarks[0]);
+                        }
+                    }
+                } catch (e) { return; }
+
+                // Head tracking (Nose is index 1)
+                if (f.faceLandmarks && f.faceLandmarks.length > 0) {
+                    const nose = f.faceLandmarks[0][1];
+                    // Smooth head pos
+                    const targetHX = (1 - nose.x) - 0.5; // -0.5 to 0.5 range
+                    const targetHY = nose.y - 0.5;
+                    headPos.x += (targetHX - headPos.x) * 0.2;
+                    headPos.y += (targetHY - headPos.y) * 0.2;
+                }
+
+                // Keep previous positions for velocity calc
+                for (const side of ['left', 'right']) {
+                    hands[side].prev = hands[side].pos ? { ...hands[side].pos } : null;
+                }
+
+                // Track which sides were updated this frame
+                const updated = { left: false, right: false };
+
+                if (r.landmarks && r.handedness && r.landmarks.length > 0) {
+                    // Collect valid hands
+                    let detectedHands = [];
+                    for (let i = 0; i < r.landmarks.length; i++) {
+                        const lm = r.landmarks[i];
+                        const wrist = lm[0];
+                        const palm = lm[9]; // Middle finger MCP
+
+                        const px = palm.x * 0.6 + wrist.x * 0.4;
+                        const py = palm.y * 0.6 + wrist.y * 0.4;
+                        const pos = { x: 1 - px, y: py };
+
+                        const dx = wrist.x - palm.x; // mirrored
+                        const dy = palm.y - wrist.y;
+                        const angle = Math.atan2(dy, dx);
+
+                        const dz = (wrist.z - palm.z) * 2.0; // amplify depth reading
+                        let dir = new THREE.Vector3(dx, dy, dz);
+                        if (dir.lengthSq() > 0.0001) dir.normalize(); else dir.set(0, 1, 0);
+
+                        // Detect gun pose using 3D distance from wrist 
+                        // -> Extended if tip is much further than MCP. Curled if tip is closer.
+                        const getD = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
+                        const indexExt = getD(lm[8], lm[0]) > getD(lm[5], lm[0]);
+                        const midCurled = getD(lm[12], lm[0]) < getD(lm[9], lm[0]) * 1.3;
+                        const ringCurled = getD(lm[16], lm[0]) < getD(lm[13], lm[0]) * 1.3;
+                        const pinkyCurled = getD(lm[20], lm[0]) < getD(lm[17], lm[0]) * 1.3;
+                        const gunPose = indexExt && midCurled && ringCurled && pinkyCurled;
+
+                        detectedHands.push({ pos, angle, dir, gunPose });
+                    }
+
+                    // Sort hands by X coordinate (mirrored: x=0 is right side of screen, x=1 is left side)
+                    // If pos.x is smaller, it means it's on the left side of the player's body.
+                    detectedHands.sort((a, b) => a.pos.x - b.pos.x);
+
+                    // Assign to left/right reliably based on position, completely ignoring MediaPipe's bad guesses
+                    if (detectedHands.length === 1) {
+                        // Guess based on screen half
+                        const side = detectedHands[0].pos.x < 0.5 ? 'left' : 'right';
+                        assignHand(side, detectedHands[0]);
+                    } else if (detectedHands.length >= 2) {
+                        assignHand('left', detectedHands[0]);
+                        assignHand('right', detectedHands[1]);
+                    }
+
+                    function assignHand(side, data) {
+                        updated[side] = true;
+
+                        // Smooth angle
+                        const prevA = hands[side].angle;
+                        let angleDelta = data.angle - prevA;
+                        if (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                        if (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+                        hands[side].angle = prevA + angleDelta * 0.6;
+                        hands[side].angVel = angleDelta;
+
+                        // Smooth 3D dir
+                        if (hands[side].prevDir) {
+                            hands[side].dir.lerpVectors(hands[side].prevDir, data.dir, 0.4).normalize();
+                        } else {
+                            hands[side].dir.copy(data.dir);
+                        }
+                        hands[side].prevDir = hands[side].dir.clone();
+
+                        // Smooth position
+                        if (hands[side].prev) {
+                            data.pos.x = hands[side].prev.x + (data.pos.x - hands[side].prev.x) * 0.3;
+                            data.pos.y = hands[side].prev.y + (data.pos.y - hands[side].prev.y) * 0.3;
+                        }
+                        hands[side].pos = data.pos;
+                        hands[side].gunPose = data.gunPose;
+
+                        if (hands[side].prev) {
+                            hands[side].vel.x = data.pos.x - hands[side].prev.x;
+                            hands[side].vel.y = data.pos.y - hands[side].prev.y;
+
+                            // Gun Recoil Gesture (Flick hand UP then DOWN to fire)
+                            if (hands[side].vel.y < -0.012) hands[side].recoilState = 1; // Moving UP
+                            if (hands[side].vel.y > 0.012 && hands[side].recoilState === 1) hands[side].recoilState = 2; // Moving DOWN (Fire!)
+                        }
+                    }
+                }
+
+                // Keep last known position for a short time if hand disappears (prevents flicker)
+                for (const side of ['left', 'right']) {
+                    if (!updated[side]) {
+                        // Fade out gradually instead of instant disappear
+                        if (hands[side].pos) {
+                            hands[side]._lostFrames = (hands[side]._lostFrames || 0) + 1;
+                            if (hands[side]._lostFrames > 10) { // ~0.3sec grace period
+                                hands[side].pos = null;
+                                hands[side].vel = { x: 0, y: 0 };
+                            }
+                        }
+                    } else {
+                        hands[side]._lostFrames = 0;
+                    }
+                }
+
+                document.getElementById('leftHandStatus').style.opacity = hands.left.pos ? '1' : '0.3';
+                document.getElementById('rightHandStatus').style.opacity = hands.right.pos ? '1' : '0.3';
+            })();
+        }
+
+        // ==================== AUDIO ====================
+        function ga() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext); return audioCtx }
+        function pn(f, t, d, ty, v) { const c = ga(), o = c.createOscillator(), g = c.createGain(); o.type = ty || 'square'; o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(v || .08, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d) }
+        function pk(t) { const c = ga(), o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(30, t + .15); g.gain.setValueAtTime(.4, t); g.gain.exponentialRampToValueAtTime(.001, t + .2); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + .2) }
+        function ps(t) { const c = ga(), b = c.createBuffer(1, c.sampleRate * .1, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++)d[i] = Math.random() * 2 - 1; const s = c.createBufferSource(); s.buffer = b; const g = c.createGain(); g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .1); const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1e3; s.connect(f); f.connect(g); g.connect(c.destination); s.start(t); s.stop(t + .1) }
+        function ph(t) { const c = ga(), b = c.createBuffer(1, c.sampleRate * .03, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++)d[i] = Math.random() * 2 - 1; const s = c.createBufferSource(); s.buffer = b; const g = c.createGain(); g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + .03); const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 5e3; s.connect(f); f.connect(g); g.connect(c.destination); s.start(t); s.stop(t + .05) }
+        let nmt = 0;
+        function scheduleMusic() { const c = ga(), bt = 60 / 128, tb = 16, sc = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88]; function sb(st) { for (let b = 0; b < tb; b++) { const t = st + b * bt; if (b % 4 === 0 || b % 4 === 2) pk(t); if (b % 4 === 1 || b % 4 === 3) ps(t); ph(t); ph(t + bt * .5); if (b % 2 === 0) pn(sc[Math.floor(Math.random() * sc.length)], t, bt * .8, 'sawtooth', .03); if (b % 4 === 0) pn(sc[0] / 2, t, bt * 2, 'sine', .1) } return st + tb * bt } nmt = c.currentTime + .1; nmt = sb(nmt); beatInterval = setInterval(() => { if (!gameRunning || paused) return; nmt = sb(nmt) }, tb * bt * 1e3 * .8) }
+        function sliceSnd(hi) { const c = ga(), t = c.currentTime, f = hi ? 1200 : 800, o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2, t + .08); g.gain.setValueAtTime(.12, t); g.gain.exponentialRampToValueAtTime(.001, t + .1); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + .12) }
+        function missSnd() { const c = ga(), t = c.currentTime, o = c.createOscillator(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(50, t + .2); g.gain.setValueAtTime(.1, t); g.gain.exponentialRampToValueAtTime(.001, t + .2); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + .25) }
+
+        // ==================== GAME ====================
+        function spawnBlock() {
+            const diff = DIFFICULTIES[difficulty];
+            const n = 1 + Math.floor(Math.random() * diff.maxBlocks);
+            const used = new Set();
+            for (let i = 0; i < n; i++) {
+                let lane, row, k, t = 0;
+                do { lane = Math.floor(Math.random() * LANE_COUNT); row = Math.floor(Math.random() * ROW_COUNT); k = lane + ',' + row; t++; } while (used.has(k) && t < 10);
+                used.add(k);
+
+                let type = lane < 2 ? 'left' : 'right';
+                const r = Math.random();
+                let isWall = false;
+                let width = 2;
+
+                if (r < 0.05) { type = 'bomb'; }
+                else if (r > 0.95) { type = 'wall'; isWall = true; row = 0; lane = lane < 2 ? 0 : 2; }
+
+                const block = { lane, row, z: -TRACK_LEN, type, direction: DIRS[Math.floor(Math.random() * 4)], hit: false, missed: false };
+                if (isWall) block.width = width;
+
+                block.mesh = makeBlock(block);
+                const { x, y } = blockWorldXY(lane, row);
+                block.mesh.group.position.set(x, y, block.z);
+                blocks.push(block);
+                totalNotes++;
+            }
+        }
+
+        // ==================== DIRECTION & HIT SYSTEM ====================
+        // Saber angle determines swing direction (like VR Beat Saber)
+        // The hand's wrist→fingertip angle = saber orientation
+        // We check: saber angle alignment + swing velocity direction
+
+        // Required saber angle for each arrow direction (in radians)
+        // angle=0: pointing right, PI/2: pointing down, -PI/2: pointing up, PI: pointing left
+        const DIR_ANGLE = {
+            down: Math.PI / 2,     // saber pointing down → swing down
+            up: -Math.PI / 2,    // saber pointing up → swing up
+            right: 0,               // saber pointing right → swing right
+            left: Math.PI,         // saber pointing left → swing left
+        };
+
+        // Required velocity direction for each arrow (in hand coords: y+ = down)
+        const DIR_VEL = {
+            up: { x: 0, y: -1 },
+            down: { x: 0, y: 1 },
+            left: { x: -1, y: 0 },
+            right: { x: 1, y: 0 },
+        };
+
+        function angleDiff(a, b) {
+            let d = a - b;
+            while (d > Math.PI) d -= 2 * Math.PI;
+            while (d < -Math.PI) d += 2 * Math.PI;
+            return d;
+        }
+
+        function checkHit(block) {
+            if (block.hit || block.missed) return false;
+            if (block.z < -6 || block.z > 5) return false;
+
+            if (block.type === 'wall') return false; // Walls checked against player head in loop
+
+            if (block.type === 'bomb') {
+                for (const side of ['left', 'right']) {
+                    const h = hands[side];
+                    if (!h.pos) continue;
+                    const hw = handToWorld(h.pos);
+                    if (!hw) continue;
+                    const { x, y } = blockWorldXY(block.lane, block.row);
+                    const dist = Math.sqrt((hw.x - x) ** 2 + (hw.y - y) ** 2);
+                    if (dist < 1.2) return true; // Generous hit radius for bombs
+                }
+                return false;
+            }
+
+            let h = hands[block.type];
+            // Fallback: if the correct hand isn't detected, use the other hand
+            if (!h.pos) h = hands[block.type === 'left' ? 'right' : 'left'];
+            if (!h.pos) return false;
+
+            const hw = handToWorld(h.pos);
+            if (!hw) return false;
+
+            const { x, y } = blockWorldXY(block.lane, block.row);
+            const dist = Math.sqrt((hw.x - x) ** 2 + (hw.y - y) ** 2);
+
+            const speed = Math.sqrt(h.vel.x ** 2 + h.vel.y ** 2);
+
+            // Very strict: 0.85 units distance (roughly the size of the block), moderate speed threshold
+            return dist < 0.85 && speed > 0.005;
+        }
+
+        function calcScore(block) {
+            let h = hands[block.type];
+            if (!h.pos) h = hands[block.type === 'left' ? 'right' : 'left'];
+            const vel = h.vel;
+            const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2);
+
+            if (block.direction === 'any') {
+                return { total: 1.0, grade: 'PERFECT', color: '#ffd700' };
+            }
+
+            // === 1. Swing Direction Score (velocity matches arrow) ===
+            // This is the primary indicator of a correct swing (like downward strike).
+            let swingScore = 0.5; // default if slow
+            if (speed > 0.005) {
+                const req = DIR_VEL[block.direction];
+                const nx = vel.x / speed, ny = vel.y / speed;
+                const dot = nx * req.x + ny * req.y;
+                if (dot > 0.6) swingScore = 1.0;
+                else if (dot > 0.2) swingScore = 0.75;
+                else if (dot > -0.2) swingScore = 0.5;
+                else swingScore = 0.25;
+            }
+
+            // === 2. Saber Angle Score (hand tilt matches arrow) ===
+            // Less strict to allow pure downward motion to score well.
+            let angleScore = 0.8;
+            if (DIR_ANGLE[block.direction] !== undefined) {
+                const requiredAngle = DIR_ANGLE[block.direction];
+                const aDiff = Math.abs(angleDiff(h.angle, requiredAngle));
+                if (aDiff < 0.8) angleScore = 1.0;
+                else if (aDiff < 1.5) angleScore = 0.8;
+                else angleScore = 0.5;
+            }
+
+            // === 3. Timing Score (z closeness) ===
+            const absZ = Math.abs(block.z);
+            let timingScore;
+            if (absZ < 1.0) timingScore = 1.0;
+            else if (absZ < 2.5) timingScore = 0.8;
+            else if (absZ < 4.0) timingScore = 0.6;
+            else timingScore = 0.4;
+
+            // === Combined: Swing 60%, Angle 20%, Timing 20% ===
+            const total = swingScore * 0.6 + angleScore * 0.2 + timingScore * 0.2;
+
+            // Grade
+            let grade, color;
+            if (total > 0.85) { grade = 'PERFECT'; color = '#ffd700'; }
+            else if (total > 0.65) { grade = 'GREAT'; color = '#44aaff'; }
+            else if (total > 0.45) { grade = 'GOOD'; color = '#44cc88'; }
+            else { grade = 'OK'; color = '#aa88ff'; }
+
+            return { total, grade, color };
+        }
+
+        let judgementTimer = null;
+
+        function hitBlock(block) {
+            block.hit = true;
+
+            if (block.type === 'bomb') {
+                combo = 0;
+                health = Math.max(0, health - 15);
+                shakeScreen(0.4, 0.8);
+                document.getElementById('missIndicator').classList.add('miss');
+                setTimeout(() => document.getElementById('missIndicator').classList.remove('miss'), 300);
+                boom(block.mesh.group.position.clone(), 0xff5500);
+                block.destroyT = 0.15;
+                missSnd();
+                updateHUD();
+                if (health <= 0) endGame();
+                return;
+            }
+
+            combo++;
+            if (combo > maxCombo) maxCombo = combo;
+            hitNotes++;
+
+            const result = calcScore(block);
+            const comboMult = Math.min(8, 1 + Math.floor(combo / 10));
+            const points = Math.round(100 * result.total * comboMult);
+            score += points;
+            health = Math.min(100, health + 3);
+
+            boom(block.mesh.group.position.clone(), block.type === 'left' ? 0xff0844 : 0x0088ff);
+            block.destroyT = 0.25;
+            block.mesh.mat.emissiveIntensity = 8; // Brighter glow on hit
+            sliceSnd(block.type === 'right');
+
+            shakeScreen(0.15, 0.4); // Screen shake effect on hit
+
+            showFeedback(points);
+            showJudgement(result.grade, result.color);
+            updateHUD();
+        }
+
+        // Screen Shake Effect
+        let shakeTime = 0;
+        let shakeMagnitude = 0;
+        function shakeScreen(duration, magnitude) {
+            shakeTime = duration;
+            shakeMagnitude = magnitude;
+        }
+
+        function showJudgement(grade, color) {
+            const el = document.getElementById('judgement');
+            el.textContent = grade;
+            el.style.color = color;
+            el.style.textShadow = '0 0 20px ' + color;
+            el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+            if (judgementTimer) clearTimeout(judgementTimer);
+            judgementTimer = setTimeout(() => el.classList.remove('show'), 500);
+        }
+
+        function missBlock(block) {
+            block.missed = true; combo = 0;
+            health = Math.max(0, health - 5);
+            missSnd();
+            scene.remove(block.mesh.group);
+            document.getElementById('missIndicator').classList.add('miss');
+            setTimeout(() => document.getElementById('missIndicator').classList.remove('miss'), 200);
+
+            shakeScreen(0.3, 0.6); // Heavy screen shake on miss
+
+            updateHUD();
+            if (health <= 0) endGame();
+        }
+
+        function showFeedback(pts) {
+            const el = document.getElementById('hitFeedback');
+            el.textContent = '+' + pts;
+            el.style.color = '#ffd700';
+            el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+            if (hitFeedbackTimer) clearTimeout(hitFeedbackTimer);
+            hitFeedbackTimer = setTimeout(() => el.classList.remove('show'), 500);
+        }
+
+        function updateHUD() {
+            document.getElementById('score').textContent = score.toLocaleString();
+            const ce = document.getElementById('combo');
+            ce.textContent = 'Combo x' + combo; ce.className = combo > 0 ? 'show' : '';
+            document.getElementById('multiplier').textContent = 'x' + Math.min(8, 1 + Math.floor(combo / 10));
+            document.getElementById('accuracy').textContent = totalNotes > 0 ? Math.round(hitNotes / totalNotes * 100) + '%' : '100%';
+            document.getElementById('healthFill').style.width = health + '%';
+        }
+
+        function fireBullet(side, startPos, dir) {
+            const color = side === 'left' ? 0xff0844 : 0x0088ff;
+            const mesh = new THREE.Mesh(
+                new THREE.CapsuleGeometry(0.1, 0.4, 4, 8),
+                new THREE.MeshBasicMaterial({ color })
+            );
+            mesh.position.copy(startPos);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+            scene.add(mesh);
+            bullets.push({ mesh, dir: dir.clone(), side, z: startPos.z });
+
+            // sound
+            if (audioCtx && audioCtx.state === 'running') {
+                const osc = audioCtx.createOscillator();
+                const gn = audioCtx.createGain();
+                osc.connect(gn); gn.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                gn.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gn.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        // ==================== MAIN LOOP ====================
+        function loop(now) {
+            requestAnimationFrame(loop);
+            const dt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            // Update sabers from hand tracking
+            const lw = handToWorld(hands.left.pos);
+            const rw = handToWorld(hands.right.pos);
+
+            if (lw) {
+                saberL.visible = playStyle === 'saber';
+                trailL.line.visible = playStyle === 'saber';
+                saberL.position.lerp(lw, 0.4);
+
+                // Full 3D Rotation via Quaternions
+                const targetQuatL = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), hands.left.dir);
+                saberL.quaternion.slerp(targetQuatL, 0.35);
+
+                leftLight.position.copy(saberL.position);
+                const tipL = new THREE.Vector3(0, 1.2, 0).applyQuaternion(saberL.quaternion).add(saberL.position);
+                updateTrail(trailL, tipL);
+
+                if (playStyle === 'gun' && hands.left.gunPose && hands.left.recoilState === 2 && now - lastFireTimeL > 300) {
+                    lastFireTimeL = now;
+                    hands.left.recoilState = 0; // Reset recoil
+                    const forwardL = new THREE.Vector3(0, 1, 0).applyQuaternion(saberL.quaternion).normalize();
+                    forwardL.z = -1.5; // Force the bullet to fly deeply into the screen
+                    forwardL.normalize();
+                    fireBullet('left', lw, forwardL);
+                }
+            } else { saberL.visible = false; trailL.line.visible = false; }
+
+            if (rw) {
+                saberR.visible = playStyle === 'saber';
+                trailR.line.visible = playStyle === 'saber';
+                saberR.position.lerp(rw, 0.4);
+
+                // Full 3D Rotation via Quaternions
+                const targetQuatR = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), hands.right.dir);
+                saberR.quaternion.slerp(targetQuatR, 0.35);
+
+                rightLight.position.copy(saberR.position);
+                const tipR = new THREE.Vector3(0, 1.2, 0).applyQuaternion(saberR.quaternion).add(saberR.position);
+                updateTrail(trailR, tipR);
+
+                if (playStyle === 'gun' && hands.right.gunPose && hands.right.recoilState === 2 && now - lastFireTimeR > 300) {
+                    lastFireTimeR = now;
+                    hands.right.recoilState = 0; // Reset recoil
+                    const forwardR = new THREE.Vector3(0, 1, 0).applyQuaternion(saberR.quaternion).normalize();
+                    forwardR.z = -1.5; // Force the bullet to fly deeply into the screen
+                    forwardR.normalize();
+                    fireBullet('right', rw, forwardR);
+                }
+            } else { saberR.visible = false; trailR.line.visible = false; }
+
+            if (gameRunning && !paused) {
+                const diff = DIFFICULTIES[difficulty];
+                const c = ga();
+
+                if (gameMode === 'custom') {
+                    const musicTime = c.currentTime - gameStartTime;
+                    const travelTime = TRACK_LEN / diff.speed;
+
+                    while (window._customMapQueue && window._customMapQueue.length > 0) {
+                        const nextNote = window._customMapQueue[0];
+                        if (musicTime + travelTime >= nextNote.time) {
+                            window._customMapQueue.shift();
+                            // Spawn custom block
+                            let lane = nextNote.lane % LANE_COUNT;
+                            let row = nextNote.row % ROW_COUNT;
+                            if (isNaN(lane)) lane = Math.floor(Math.random() * LANE_COUNT);
+                            if (isNaN(row)) row = Math.floor(Math.random() * ROW_COUNT);
+
+                            const block = {
+                                lane: lane,
+                                row: row,
+                                z: -TRACK_LEN,
+                                type: nextNote.type,
+                                direction: nextNote.direction || 'down',
+                                width: nextNote.width || 2,
+                                hit: false,
+                                missed: false
+                            };
+
+                            // Adjust z slightly if we missed the exact frame
+                            const overshoot = (musicTime + travelTime) - nextNote.time;
+                            block.z += overshoot * diff.speed;
+
+                            block.mesh = makeBlock(block);
+                            const { x, y } = blockWorldXY(block.lane, block.row);
+                            block.mesh.group.position.set(x, y, block.z);
+                            blocks.push(block);
+                            totalNotes++;
+                        } else {
+                            break;
+                        }
+                    }
+                } else {
+                    if (now - (window._lastSpawn || 0) > diff.spawnRate) {
+                        spawnBlock();
+                        window._lastSpawn = now;
+                    }
+                }
+
+                // Move bullets
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const b = bullets[i];
+                    b.mesh.position.addScaledVector(b.dir, 40 * dt);
+                    b.z = b.mesh.position.z;
+                    if (b.z < -TRACK_LEN - 10 || b.z > 10 || b.mesh.position.y < -10 || b.mesh.position.y > 10 || b.mesh.position.x < -10 || b.mesh.position.x > 10) {
+                        scene.remove(b.mesh);
+                        bullets.splice(i, 1);
+                    }
+                }
+
+                // Move and check blocks
+                for (const b of blocks) {
+                    if (b.hit) {
+                        if (b.destroyT !== undefined) {
+                            b.destroyT -= dt;
+                            b.mesh.group.scale.multiplyScalar(0.88);
+                            b.mesh.mat.transparent = true;
+                            b.mesh.mat.opacity = Math.max(0, b.destroyT / 0.25);
+                            if (b.destroyT <= 0) { scene.remove(b.mesh.group); b.destroyT = undefined; }
+                        }
+                        continue;
+                    }
+                    if (b.missed) continue;
+
+                    // Move toward player (z increases toward 0)
+                    b.z += diff.speed * dt;
+                    b.mesh.group.position.z = b.z;
+                    b.mesh.group.rotation.y = Math.sin(now * 0.002 + b.lane) * 0.08;
+
+                    // Wall Collision (Player Head inside Wall)
+                    if (b.type === 'wall' && b.z > -1.5 && b.z < 2.5 && !b.missed) {
+                        const hx = headPos.x * totalW * 1.5; // World X of head
+                        const wallLeft = b.mesh.group.position.x;
+                        const wallRight = wallLeft + (b.width * LANE_W);
+
+                        // Check if head is horizontally within the wall
+                        // We add a little leniency (0.2)
+                        if (hx > wallLeft - 0.2 && hx < wallRight + 0.2) {
+                            health = Math.max(0, health - 0.5); // Damage per frame inside wall
+                            document.getElementById('missIndicator').classList.add('miss');
+                            shakeScreen(0.1, 0.2);
+                            updateHUD();
+                            if (health <= 0) endGame();
+                        } else {
+                            document.getElementById('missIndicator').classList.remove('miss');
+                        }
+                    }
+
+                    if (b.z > 5) {
+                        if (b.type !== 'wall' && b.type !== 'bomb') missBlock(b); // Only normal blocks cause a "Miss" drop at bottom
+                        else {
+                            // Bombs and walls just drift away safely if not sliced/hit
+                            b.missed = true;
+                            scene.remove(b.mesh.group);
+                        }
+                    } else {
+                        if (playStyle === 'saber' && b.type !== 'wall' && checkHit(b)) {
+                            hitBlock(b);
+                        } else if (playStyle === 'gun' && b.type !== 'wall' && b.type !== 'bomb') {
+                            // Check bullet collisions (ignoring bombs)
+                            for (let j = bullets.length - 1; j >= 0; j--) {
+                                const bullet = bullets[j];
+                                if (bullet.side !== b.type) continue;
+                                const bx = b.mesh.group.position.x;
+                                const by = b.mesh.group.position.y;
+                                const bz = b.mesh.group.position.z;
+                                const dx = bullet.mesh.position.x - bx;
+                                const dy = bullet.mesh.position.y - by;
+                                const dz = bullet.mesh.position.z - bz;
+                                if (Math.sqrt(dx * dx + dy * dy + dz * dz) < 1.4) { // Generous bullet hit radius
+                                    b.hit = true;
+                                    b.destroyT = 0.25;
+                                    boom(b.mesh.group.position.clone(), bullet.side === 'left' ? 0xff0844 : 0x0088ff);
+                                    score += 115;
+                                    combo++;
+                                    if (combo > maxCombo) maxCombo = combo;
+                                    hitNotes++;
+                                    showFeedback('115');
+                                    scene.remove(bullet.mesh);
+                                    bullets.splice(j, 1);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                blocks = blocks.filter(b => !(b.missed || (b.hit && b.destroyT === undefined)));
+                tickParticles(dt);
+            }
+
+            // Subtle camera sway + Screen Shake
+            if (shakeTime > 0) {
+                shakeTime -= dt;
+                const sx = (Math.random() - 0.5) * shakeMagnitude;
+                const sy = (Math.random() - 0.5) * shakeMagnitude;
+                camera.position.x = Math.sin(now * 0.001) * 0.5 + sx;
+                camera.position.y = 3.5 + Math.cos(now * 0.0008) * 0.2 + sy;
+            } else {
+                camera.position.x = Math.sin(now * 0.001) * 0.5;
+                camera.position.y = 3.5 + Math.cos(now * 0.0008) * 0.2;
+            }
+            camera.lookAt(0, 1.5, -15);
+            renderer.render(scene, camera);
+        }
+
+        // ==================== START / END ====================
+        function startGame() {
+            score = 0; combo = 0; maxCombo = 0; totalNotes = 0; hitNotes = 0; health = 100;
+            for (const b of blocks) if (b.mesh) scene.remove(b.mesh.group);
+            blocks = []; window._lastSpawn = 0;
+            gameRunning = true; paused = false;
+            document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('healthBar').classList.remove('hidden');
+            document.getElementById('finalScore').style.display = 'none';
+            updateHUD();
+
+            const c = ga(); if (c.state === 'suspended') c.resume();
+
+            if (beatInterval) { clearInterval(beatInterval); beatInterval = null; }
+            if (audioSourceNode) { try { audioSourceNode.stop(); } catch (e) { } audioSourceNode = null; }
+
+            if (customBeatmap && customAudioBuffer) {
+                gameMode = 'custom';
+                gameStartTime = c.currentTime + 3.0; // 3 second delay before music starts
+
+                audioSourceNode = c.createBufferSource();
+                audioSourceNode.buffer = customAudioBuffer;
+                audioSourceNode.connect(c.destination);
+                audioSourceNode.start(gameStartTime);
+                audioSourceNode.onended = () => { if (gameRunning) endGame(); };
+
+                // clone beatmap queue
+                window._customMapQueue = JSON.parse(JSON.stringify(customBeatmap)).sort((a, b) => a.time - b.time);
+            } else {
+                gameMode = 'random';
+                scheduleMusic();
+            }
+        }
+
+        function endGame() {
+            gameRunning = false;
+            if (beatInterval) { clearInterval(beatInterval); beatInterval = null; }
+            if (audioSourceNode) { try { audioSourceNode.stop(); } catch (e) { } audioSourceNode = null; }
+            for (const b of blocks) if (b.mesh) scene.remove(b.mesh.group);
+            blocks = [];
+            document.getElementById('overlay').classList.remove('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('healthBar').classList.add('hidden');
+            document.getElementById('finalScore').style.display = 'block';
+            document.getElementById('finalScoreVal').textContent = score.toLocaleString();
+            document.getElementById('finalStats').textContent = 'Max Combo: ' + maxCombo + ' | Accuracy: ' + (totalNotes > 0 ? Math.round(hitNotes / totalNotes * 100) : 100) + '% | Notes: ' + hitNotes + '/' + totalNotes;
+            document.getElementById('title').textContent = 'STAGE CLEAR';
+            document.getElementById('startBtn').textContent = 'REPLAY';
+            document.getElementById('retryBtn').addEventListener('click', startGame, { once: true });
+        }
+
+        // ==================== INIT ====================
+        const audioInput = document.getElementById('audioInput');
+        const mapInput = document.getElementById('mapInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadMapBtn = document.getElementById('downloadMapBtn');
+        const startBtnElem = document.getElementById('startBtn');
+
+        audioInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('audioFileName').textContent = file.name;
+
+            // Audio context requires user gesture. We ensure it's un-suspended.
+            const c = ga();
+            if (c.state === 'suspended') {
+                try { await c.resume(); } catch (err) { console.warn(err); }
+            }
+
+            generateBtn.textContent = 'Loading Audio...';
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                // decodeAudioData can be heavy, but it's natively async.
+                customAudioBuffer = await c.decodeAudioData(arrayBuffer);
+                generateBtn.textContent = 'Generate Map';
+                generateBtn.disabled = false;
+
+                if (customBeatmap) {
+                    startBtnElem.textContent = 'PLAY CUSTOM MAP';
+                    startBtnElem.disabled = false;
+                }
+            } catch (err) {
+                console.error("Audio decode error", err);
+                generateBtn.textContent = 'Error Loading Audio';
+                alert('Could not parse audio file. Please try a different MP3/WAV file.');
+            }
+        });
+
+        // Block Image Upload
+        const blockImageInput = document.getElementById('blockImageInput');
+        const blockImageName = document.getElementById('blockImageName');
+        blockImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                blockImageName.textContent = file.name;
+                const url = URL.createObjectURL(file);
+                new THREE.TextureLoader().load(url, (tex) => {
+                    blockTexture = tex;
+                    blockTexture.colorSpace = THREE.SRGBColorSpace;
+                    console.log("Block texture LOADED successfully:", tex);
+                });
+            }
+        });
+
+        mapInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('mapFileName').textContent = file.name;
+            const text = await file.text();
+            try {
+                customBeatmap = JSON.parse(text);
+                downloadMapBtn.style.display = 'inline-block';
+                if (customAudioBuffer) {
+                    startBtnElem.textContent = 'PLAY CUSTOM MAP';
+                    startBtnElem.disabled = false;
+                }
+            } catch (e) { alert('Invalid map JSON'); }
+        });
+
+        // Async beat extraction to prevent blocking the main thread (fixes requestAnimationFrame violation)
+        async function extractBeatsAsync(buffer) {
+            return new Promise((resolve) => {
+                const channel = buffer.getChannelData(0);
+                const sampleRate = buffer.sampleRate;
+                let beats = [];
+                const threshold = 0.8;
+                const step = Math.floor(sampleRate * 0.1);
+
+                let i = 0;
+
+                function processChunk() {
+                    const chunkEnd = Math.min(i + sampleRate * 5, channel.length); // Process 5 seconds of audio per frame
+
+                    for (; i < chunkEnd; i += step) {
+                        let max = 0;
+                        for (let j = 0; j < step && i + j < channel.length; j++) {
+                            if (Math.abs(channel[i + j]) > max) max = Math.abs(channel[i + j]);
+                        }
+                        if (max > threshold) {
+                            const time = i / sampleRate;
+                            if (beats.length === 0 || time - beats[beats.length - 1] > 0.3) {
+                                beats.push(Math.round(time * 100) / 100);
+                            }
+                        }
+                    }
+
+                    if (i < channel.length) {
+                        // Yield to main thread
+                        requestAnimationFrame(processChunk);
+                    } else {
+                        // Finished
+                        if (beats.length > 400) {
+                            beats = beats.filter((_, idx) => idx % Math.ceil(beats.length / 400) === 0);
+                        }
+                        resolve(beats);
+                    }
+                }
+
+                processChunk();
+            });
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            if (!customAudioBuffer) return alert('Load audio first');
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating Map...';
+
+            const beats = await extractBeatsAsync(customAudioBuffer);
+
+            // Procedural Local Generation (No API!)
+            const newMap = [];
+            const blockDirs = ['up', 'down', 'left', 'right'];
+            let lastLeft = -1, lastRight = -1;
+
+            beats.forEach((time, index) => {
+                const r = Math.random();
+                const diffConfig = DIFFICULTIES[difficulty];
+
+                // Base density defined by difficulty
+                let baseKeepRatio = 1.0 - diffConfig.skipChance;
+
+                // Read user's custom density multiplier slider
+                const userDensityMult = parseFloat(document.getElementById('densitySlider').value);
+                const finalKeepRatio = baseKeepRatio * userDensityMult;
+
+                // Skip beats if random chance exceeds the final allowed density
+                if (Math.random() > finalKeepRatio) return;
+
+                // Spawn a wall (approx 4% chance on Normal/Hard)
+                if (r < 0.04 && index > 10 && difficulty !== 'easy') {
+                    const lane = Math.random() > 0.5 ? 0 : 2; // cover left half or right half
+                    newMap.push({ time, lane, row: 0, type: 'wall', width: 2 });
+                    return; // Skip normal blocks perfectly aligned with wall start
+                }
+
+                // Spawn a bomb (approx 6% chance)
+                if (r > 0.94 && index > 10) {
+                    const blane = Math.floor(Math.random() * 4);
+                    const brow = Math.floor(Math.random() * 3);
+                    newMap.push({ time, lane: blane, row: brow, type: 'bomb' });
+                }
+
+                // Normal block
+                const useRight = index % 2 === 0;
+                const type = useRight ? 'right' : 'left';
+                let dirOptions = ['down', 'down', 'up', 'down', 'left', 'right', 'any', 'any'];
+                let direction = dirOptions[Math.floor(Math.random() * dirOptions.length)];
+                let lane = useRight ? (Math.random() > 0.5 ? 2 : 3) : (Math.random() > 0.5 ? 0 : 1);
+                let row = Math.floor(Math.random() * 3);
+
+                newMap.push({ time, lane, row, type, direction });
+            });
+
+            customBeatmap = newMap;
+            generateBtn.textContent = 'Map Generated! (' + customBeatmap.length + ' notes)';
+            document.getElementById('startBtn').textContent = 'PLAY CUSTOM MAP';
+            document.getElementById('startBtn').disabled = false;
+            downloadMapBtn.style.display = 'inline-block';
+        });
+
+        downloadMapBtn.addEventListener('click', () => {
+            if (!customBeatmap) return;
+            const blob = new Blob([JSON.stringify(customBeatmap, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'custom_beatmap.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        startBtnElem.addEventListener('click', startGame);
+        document.querySelectorAll('.diff-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.diff-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            difficulty = b.dataset.diff;
+            if (customAudioBuffer) generateBtn.click(); // Auto re-generate map with new difficultly density
+        }));
+
+        document.querySelectorAll('.style-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.style-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            playStyle = b.dataset.style;
+        }));
+
+        const densitySlider = document.getElementById('densitySlider');
+        densitySlider.addEventListener('input', (e) => {
+            document.getElementById('densityVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+        });
+        densitySlider.addEventListener('change', () => {
+            // Auto-regenerate map when slider is released
+            if (customAudioBuffer) generateBtn.click();
+        });
+
+        addEventListener('keydown', e => { if (e.key === 'Escape' && gameRunning) paused = !paused; });
+        addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        requestAnimationFrame(loop);
+        initMediaPipe();
+    </script>
+</body>
+
+</html>

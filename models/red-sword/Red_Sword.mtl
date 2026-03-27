@@ -1,0 +1,23 @@
+# File produced by Open Asset Import Library (http://www.assimp.sf.net)
+# (assimp v3.1.206520482)
+
+newmtl RedSwordBlade
+kd 0.8 0 0.128394
+ka 1 1 1
+ks 0.5 0.5 0.5
+ke 15.2 0.149165 0.5699
+d 1
+Ns 900
+illum 2
+
+newmtl RedSwordHandle
+kd 0.8 0.064329 0.033214
+ka 1 1 1
+ks 0.5 0.5 0.5
+ke 0 0 0
+d 1
+Ns 525.023
+illum 2
+bump RedSwordNormal.exr
+map_bump RedSwordNormal.exr
+
